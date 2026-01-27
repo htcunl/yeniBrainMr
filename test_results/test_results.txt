@@ -1,0 +1,7 @@
+Beyin MR Segmentasyonu Test Sonuçları
+========================================
+Checkpoint: outputs/checkpoints/best_model.h5
+Test örnekleri: 613
+
+Dice Score: 0.7749 ± 0.2670
+IoU Score:  0.6896 ± 0.2659
