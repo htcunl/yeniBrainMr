@@ -79,11 +79,11 @@ def plot_training_history(csv_path: str, output_dir: Path):
     plt.tight_layout()
     plt.savefig(output_dir / 'training_curves.png', dpi=150, bbox_inches='tight')
     plt.show()
-    print(f"✅ Eğitim grafikleri kaydedildi: {output_dir / 'training_curves.png'}")
+    print(f"Egitim grafikleri kaydedildi: {output_dir / 'training_curves.png'}")
     
     # En iyi değerleri yazdır
     best_idx = df['val_dice'].idxmax()
-    print(f"\n📊 EN İYİ EPOCH: {df.loc[best_idx, 'epoch'] + 1}")
+    print(f"\nEN IYI EPOCH: {df.loc[best_idx, 'epoch'] + 1}")
     print(f"   Train Dice: {df.loc[best_idx, 'dice']:.4f}")
     print(f"   Val Dice: {df.loc[best_idx, 'val_dice']:.4f}")
     print(f"   Train IoU: {df.loc[best_idx, 'iou']:.4f}")
@@ -95,7 +95,7 @@ def test_model(model, data_dir: str, test_items: list, target_size=(256, 256)):
     all_dice = []
     all_iou = []
     
-    print(f"\n🧪 Test ediliyor... ({len(test_items)} örnek)")
+    print(f"\nTest ediliyor... ({len(test_items)} ornek)")
     
     for i, item in enumerate(test_items):
         try:
@@ -185,7 +185,7 @@ def visualize_predictions(model, data_dir: str, test_items: list, output_dir: Pa
     plt.tight_layout()
     plt.savefig(output_dir / 'test_predictions.png', dpi=150, bbox_inches='tight')
     plt.show()
-    print(f"✅ Test tahminleri kaydedildi: {output_dir / 'test_predictions.png'}")
+    print(f"Test tahminleri kaydedildi: {output_dir / 'test_predictions.png'}")
 
 
 def plot_test_distribution(results: dict, output_dir: Path):
@@ -214,7 +214,7 @@ def plot_test_distribution(results: dict, output_dir: Path):
     plt.tight_layout()
     plt.savefig(output_dir / 'test_distribution.png', dpi=150, bbox_inches='tight')
     plt.show()
-    print(f"✅ Dağılım grafikleri kaydedildi: {output_dir / 'test_distribution.png'}")
+    print(f"Dagilim grafikleri kaydedildi: {output_dir / 'test_distribution.png'}")
 
 
 def main():
@@ -226,15 +226,15 @@ def main():
     output_dir = Path(r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs")
     
     print("=" * 60)
-    print("🎯 BEYİN MR SEGMENTASYONU - TEST VE GÖRSELLEŞTİRME")
+    print("BEYIN MR SEGMENTASYONU - TEST VE GORSELLESTIRME")
     print("=" * 60)
     
-    # 1. Eğitim grafiklerini çiz
-    print("\n📈 Eğitim grafikleri oluşturuluyor...")
+    # 1. Egitim grafiklerini ciz
+    print("\nEgitim grafikleri olusturuluyor...")
     plot_training_history(csv_path, output_dir)
     
-    # 2. Model yükle
-    print("\n📥 Model yükleniyor...")
+    # 2. Model yukle
+    print("\nModel yukleniyor...")
     model = tf.keras.models.load_model(
         checkpoint_path,
         custom_objects={
@@ -243,29 +243,29 @@ def main():
             'IoUCoefficient': IoUCoefficient,
         }
     )
-    print("   ✅ Model yüklendi!")
+    print("   Model yuklendi!")
     
     # 3. Test setini yükle
     splits = load_split(split_file)
     test_items = splits['test']
-    print(f"\n📊 Test seti: {len(test_items)} görüntü")
+    print(f"\nTest seti: {len(test_items)} goruntu")
     
     # 4. Test et
     results = test_model(model, data_dir, test_items)
     
     print("\n" + "=" * 60)
-    print("📊 TEST SONUÇLARI")
+    print("TEST SONUCLARI")
     print("=" * 60)
     print(f"   Dice Score: {results['dice_mean']:.4f} ± {results['dice_std']:.4f}")
     print(f"   IoU Score:  {results['iou_mean']:.4f} ± {results['iou_std']:.4f}")
     print("=" * 60)
     
-    # 5. Test dağılımlarını çiz
-    print("\n📊 Test dağılımları oluşturuluyor...")
+    # 5. Test dagilimlarini ciz
+    print("\nTest dagilimlari olusturuluyor...")
     plot_test_distribution(results, output_dir)
     
-    # 6. Tahminleri görselleştir
-    print("\n🎨 Örnek tahminler görselleştiriliyor...")
+    # 6. Tahminleri gorsellestir
+    print("\nOrnek tahminler gorsellestiriliyor...")
     visualize_predictions(model, data_dir, test_items, output_dir, num_samples=12)
     
     # 7. Sonuçları dosyaya kaydet
@@ -278,9 +278,9 @@ def main():
         f.write(f"Dice Score: {results['dice_mean']:.4f} ± {results['dice_std']:.4f}\n")
         f.write(f"IoU Score:  {results['iou_mean']:.4f} ± {results['iou_std']:.4f}\n")
         f.write("\n" + "=" * 50 + "\n")
-    print(f"\n✅ Sonuçlar kaydedildi: {results_file}")
+    print(f"\nSonuclar kaydedildi: {results_file}")
     
-    print("\n🎉 Tamamlandı!")
+    print("\nTamamlandi!")
 
 
 if __name__ == "__main__":

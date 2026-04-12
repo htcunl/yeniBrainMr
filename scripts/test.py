@@ -37,7 +37,7 @@ def evaluate_model(model, dataset, num_samples: int) -> dict:
     all_dice = []
     all_iou = []
     
-    print("\n🧪 Test ediliyor...")
+    print("\nTest ediliyor...")
     for images, masks in tqdm(dataset, desc="Testing"):
         preds = model(images, training=False)
         preds_binary = tf.cast(tf.nn.sigmoid(preds) > 0.5, tf.float32)
@@ -81,7 +81,7 @@ def evaluate_model(model, dataset, num_samples: int) -> dict:
 def plot_metrics_histogram(results: dict, output_dir: Path):
     """Dice ve IoU skorlarının dağılım histogramını çiz"""
     if not HAS_MATPLOTLIB:
-        print("⚠️ matplotlib yüklü değil, grafik atlanıyor.")
+        print("UYARI: matplotlib yüklü değil, grafik atlanıyor.")
         return
     
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -109,13 +109,13 @@ def plot_metrics_histogram(results: dict, output_dir: Path):
     plt.tight_layout()
     plt.savefig(output_dir / "metrics_histogram.png", dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✅ Histogram grafiği kaydedildi: {output_dir / 'metrics_histogram.png'}")
+    print(f"Histogram grafiği kaydedildi: {output_dir / 'metrics_histogram.png'}")
 
 
 def plot_metrics_boxplot(results: dict, output_dir: Path):
     """Dice ve IoU skorlarının box plot grafiğini çiz"""
     if not HAS_MATPLOTLIB:
-        print("⚠️ matplotlib yüklü değil, grafik atlanıyor.")
+        print("UYARI: matplotlib yüklü değil, grafik atlanıyor.")
         return
     
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -140,13 +140,13 @@ def plot_metrics_boxplot(results: dict, output_dir: Path):
     plt.tight_layout()
     plt.savefig(output_dir / "metrics_boxplot.png", dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✅ Box plot grafiği kaydedildi: {output_dir / 'metrics_boxplot.png'}")
+    print(f"Box plot grafiği kaydedildi: {output_dir / 'metrics_boxplot.png'}")
 
 
 def plot_metrics_bar(results: dict, output_dir: Path):
     """Ortalama metriklerin bar chart grafiğini çiz"""
     if not HAS_MATPLOTLIB:
-        print("⚠️ matplotlib yüklü değil, grafik atlanıyor.")
+        print("UYARI: matplotlib yüklü değil, grafik atlanıyor.")
         return
     
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -174,7 +174,7 @@ def plot_metrics_bar(results: dict, output_dir: Path):
     plt.tight_layout()
     plt.savefig(output_dir / "metrics_bar.png", dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✅ Bar chart grafiği kaydedildi: {output_dir / 'metrics_bar.png'}")
+    print(f"Bar chart grafiği kaydedildi: {output_dir / 'metrics_bar.png'}")
 
 
 def visualize_predictions(
@@ -184,16 +184,55 @@ def visualize_predictions(
     target_size: tuple,
     output_dir: Path,
     num_samples: int = 10,
+    all_dice_scores: list = None,
+    all_iou_scores: list = None,
 ):
-    """Tahminleri görselleştir"""
+    """Tahminleri görselleştir - dengeli örnekleme ile"""
     if not HAS_MATPLOTLIB:
-        print("⚠️ matplotlib yüklü değil, görselleştirme atlanıyor.")
+        print("UYARI: matplotlib yüklü değil, görselleştirme atlanıyor.")
         return
     
     vis_dir = output_dir / "predictions"
     vis_dir.mkdir(exist_ok=True)
     
-    indices = np.random.choice(len(items), min(num_samples, len(items)), replace=False)
+    # Dengeli örnekleme: farklı performans seviyelerinden örnekler seç
+    if all_dice_scores is not None and len(all_dice_scores) == len(items):
+        dice_arr = np.array(all_dice_scores)
+        
+        # Skorlara göre sırala
+        sorted_indices = np.argsort(dice_arr)
+        n = len(sorted_indices)
+        
+        # 5 grup: çok kötü, kötü, orta, iyi, çok iyi
+        samples_per_group = num_samples // 5
+        extra = num_samples % 5
+        
+        selected_indices = []
+        
+        # Çok kötü (en düşük %20)
+        low_range = sorted_indices[:n//5]
+        selected_indices.extend(np.random.choice(low_range, min(samples_per_group, len(low_range)), replace=False))
+        
+        # Kötü (%20-40)
+        low_mid_range = sorted_indices[n//5:2*n//5]
+        selected_indices.extend(np.random.choice(low_mid_range, min(samples_per_group, len(low_mid_range)), replace=False))
+        
+        # Orta (%40-60)
+        mid_range = sorted_indices[2*n//5:3*n//5]
+        selected_indices.extend(np.random.choice(mid_range, min(samples_per_group, len(mid_range)), replace=False))
+        
+        # İyi (%60-80)
+        high_mid_range = sorted_indices[3*n//5:4*n//5]
+        selected_indices.extend(np.random.choice(high_mid_range, min(samples_per_group, len(high_mid_range)), replace=False))
+        
+        # Çok iyi (en yüksek %20)
+        high_range = sorted_indices[4*n//5:]
+        selected_indices.extend(np.random.choice(high_range, min(samples_per_group + extra, len(high_range)), replace=False))
+        
+        indices = np.array(selected_indices)
+        print(f"   Dengeli örnekleme: {len(indices)} örnek (farklı performans seviyelerinden)")
+    else:
+        indices = np.random.choice(len(items), min(num_samples, len(items)), replace=False)
     
     for idx in indices:
         item = items[idx]
@@ -205,10 +244,11 @@ def visualize_predictions(
         pred = tf.nn.sigmoid(pred).numpy()[0]
         pred_binary = (pred > 0.5).astype(np.float32)
         
-        # Dice hesapla
+        # Dice ve IoU hesapla
         intersection = np.sum(mask * pred_binary)
         union = np.sum(mask) + np.sum(pred_binary)
         dice = (2 * intersection + 1e-6) / (union + 1e-6)
+        iou = (intersection + 1e-6) / (union - intersection + 1e-6)
         
         # Görselleştir
         fig, axes = plt.subplots(1, 4, figsize=(16, 4))
@@ -231,14 +271,14 @@ def visualize_predictions(
         overlay[..., 1] = mask[:, :, 0]  # Yeşil - ground truth
         axes[3].imshow(img[:, :, 0], cmap="gray", alpha=0.7)
         axes[3].imshow(overlay, alpha=0.5)
-        axes[3].set_title(f"Karşılaştırma (Dice: {dice:.4f})\n(Yeşil: GT, Kırmızı: Tahmin)", fontsize=12)
+        axes[3].set_title(f"Karşılaştırma\nDice: {dice:.4f} | IoU: {iou:.4f}\n(Yeşil: GT, Kırmızı: Tahmin)", fontsize=11)
         axes[3].axis("off")
         
         plt.tight_layout()
         plt.savefig(vis_dir / f"sample_{idx:04d}.png", dpi=150, bbox_inches='tight')
         plt.close()
     
-    print(f"✅ {len(indices)} tahmin görselleştirmesi kaydedildi: {vis_dir}")
+    print(f"{len(indices)} tahmin görselleştirmesi kaydedildi: {vis_dir}")
 
 
 def main():
@@ -250,28 +290,28 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16, help="Batch boyutu")
     parser.add_argument("--image-size", type=int, default=256, help="Görüntü boyutu")
     parser.add_argument("--visualize", action="store_true", help="Tahminleri görselleştir")
-    parser.add_argument("--num-vis", type=int, default=10, help="Görselleştirilecek örnek sayısı")
+    parser.add_argument("--num-vis", type=int, default=50, help="Görselleştirilecek örnek sayısı")
     args = parser.parse_args()
 
     # GPU info
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
-        print(f"🚀 GPU kullanılıyor: {len(gpus)} GPU")
+        print(f"GPU kullanılıyor: {len(gpus)} GPU")
     else:
-        print("⚠️ GPU bulunamadı, CPU kullanılıyor!")
+        print("UYARI: GPU bulunamadı, CPU kullanılıyor!")
 
     # Çıktı klasörü
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Split dosyasını yükle
-    print(f"\n📂 Split dosyası yükleniyor: {args.split_file}")
+    print(f"\nSplit dosyası yükleniyor: {args.split_file}")
     splits = load_split(args.split_file)
     test_items = splits["test"]
     print(f"   Test seti: {len(test_items)} örnek")
 
     # Model yükle
-    print(f"\n📥 Model yükleniyor: {args.checkpoint}")
+    print(f"\nModel yükleniyor: {args.checkpoint}")
     model = keras.models.load_model(
         args.checkpoint,
         custom_objects={
@@ -280,7 +320,7 @@ def main():
             "IoUCoefficient": IoUCoefficient,
         }
     )
-    print("   ✅ Model yüklendi!")
+    print("   Model yüklendi!")
 
     # Test dataset
     target_size = (args.image_size, args.image_size)
@@ -298,7 +338,7 @@ def main():
 
     # Sonuçları yazdır
     print("\n" + "=" * 60)
-    print("📊 TEST SONUÇLARI")
+    print("TEST SONUCLARI")
     print("=" * 60)
     print(f"   Dice Score: {results['dice_mean']:.4f} ± {results['dice_std']:.4f}")
     print(f"   IoU Score:  {results['iou_mean']:.4f} ± {results['iou_std']:.4f}")
@@ -313,21 +353,23 @@ def main():
         f.write(f"Test örnekleri: {len(test_items)}\n\n")
         f.write(f"Dice Score: {results['dice_mean']:.4f} ± {results['dice_std']:.4f}\n")
         f.write(f"IoU Score:  {results['iou_mean']:.4f} ± {results['iou_std']:.4f}\n")
-    print(f"\n✅ Sonuçlar kaydedildi: {results_file}")
+    print(f"\nSonuçlar kaydedildi: {results_file}")
 
     # Grafikleri oluştur
-    print("\n📊 Grafikler oluşturuluyor...")
+    print("\nGrafikler oluşturuluyor...")
     plot_metrics_histogram(results, output_dir)
     plot_metrics_boxplot(results, output_dir)
     plot_metrics_bar(results, output_dir)
 
     # Tahmin görselleştirmesi
-    print("\n🎨 Tahminler görselleştiriliyor...")
+    print("\nTahminler görselleştiriliyor...")
     visualize_predictions(
-        model, args.data_dir, test_items, target_size, output_dir, args.num_vis
+        model, args.data_dir, test_items, target_size, output_dir, args.num_vis,
+        all_dice_scores=results['all_dice'],
+        all_iou_scores=results['all_iou'],
     )
 
-    print("\n🎉 Test tamamlandı!")
+    print("\nTest tamamlandı!")
 
 
 if __name__ == "__main__":

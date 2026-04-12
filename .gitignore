@@ -1,0 +1,27 @@
+# Veri setini yükleme (Çok büyük olduğu için)
+archive/
+archive (1)/
+data/
+
+# Model ağırlıklarını yükleme (100MB sınırına takılabilir)
+outputs/
+*.h5
+*.pth
+
+# Test sonuçlarını ve geçici dosyaları yükleme
+test_results/
+__pycache__/
+.ipynb_checkpoints/
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

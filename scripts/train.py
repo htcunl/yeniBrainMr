@@ -37,13 +37,13 @@ from brain_mr_seg.splits import load_split
 def print_gpu_info():
     """GPU bilgilerini yazdır"""
     print("\n" + "=" * 60)
-    print("🖥️  DONANIM BİLGİSİ")
+    print("DONANIM BILGISI")
     print("=" * 60)
     print(f"TensorFlow version: {tf.__version__}")
     
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
-        print(f"✅ GPU sayısı: {len(gpus)}")
+        print(f"GPU sayisi: {len(gpus)}")
         for i, gpu in enumerate(gpus):
             print(f"   GPU {i}: {gpu.name}")
             # GPU bellek bilgisi
@@ -54,7 +54,7 @@ def print_gpu_info():
             except:
                 pass
     else:
-        print("❌ GPU bulunamadı! CPU kullanılacak.")
+        print("UYARI: GPU bulunamadi! CPU kullanilacak.")
     print("=" * 60 + "\n")
 
 
@@ -130,8 +130,8 @@ def main():
     (output_dir / "checkpoints").mkdir(exist_ok=True)
     (output_dir / "logs").mkdir(exist_ok=True)
 
-    # Split dosyasını yükle
-    print(f"📂 Split dosyası yükleniyor: {args.split_file}")
+    # Split dosyasini yukle
+    print(f"Split dosyasi yukleniyor: {args.split_file}")
     splits = load_split(args.split_file)
     train_items = splits["train"]
     val_items = splits["val"]
@@ -140,8 +140,8 @@ def main():
     print(f"   Validasyon seti: {len(val_items)} örnek")
     print(f"   Test seti: {len(splits['test'])} örnek (eğitimde kullanılmayacak!)")
 
-    # Dataset oluştur
-    print("\n📊 Dataset oluşturuluyor...")
+    # Dataset olustur
+    print("\nDataset olusturuluyor...")
     target_size = (args.image_size, args.image_size)
     
     train_dataset = create_dataset(
@@ -162,8 +162,8 @@ def main():
         augment=False,
     )
 
-    # Model oluştur
-    print("\n🧠 Model oluşturuluyor...")
+    # Model olustur
+    print("\nModel olusturuluyor...")
     model = build_unet(
         input_shape=(*target_size, 1),
         base_filters=args.base_filters,
@@ -178,7 +178,7 @@ def main():
     # Resume from checkpoint
     initial_epoch = 0
     if args.resume and os.path.exists(args.resume):
-        print(f"\n📥 Model yükleniyor: {args.resume}")
+        print(f"\nModel yukleniyor: {args.resume}")
         model = tf.keras.models.load_model(
             args.resume,
             custom_objects={
@@ -206,9 +206,9 @@ def main():
     # Callbacks
     callbacks = get_callbacks(output_dir, patience=args.patience)
 
-    # Eğitim
+    # Egitim
     print("\n" + "=" * 60)
-    print("🚀 EĞİTİM BAŞLIYOR")
+    print("EGITIM BASLIYOR")
     print("=" * 60)
     print(f"   Epochs: {args.epochs}")
     print(f"   Batch size: {args.batch_size}")
@@ -231,9 +231,9 @@ def main():
         verbose=1,
     )
 
-    # Sonuçları yazdır
+    # Sonuclari yazdir
     print("\n" + "=" * 60)
-    print("🎉 EĞİTİM TAMAMLANDI!")
+    print("EGITIM TAMAMLANDI!")
     print("=" * 60)
     
     best_dice = max(history.history.get('val_dice', [0]))
