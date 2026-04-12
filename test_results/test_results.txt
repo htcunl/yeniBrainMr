@@ -1,7 +1,25 @@
 Beyin MR Segmentasyonu Test Sonuçları
-========================================
-Checkpoint: outputs/checkpoints/best_model.h5
+==================================================
+Checkpoint: C:\Users\Lenovo\Desktop\yeniBrainMr\outputs\checkpoints\best_model.h5
 Test örnekleri: 613
 
-Dice Score: 0.7749 ± 0.2670
-IoU Score:  0.6896 ± 0.2659
+1. GRUP METRİKLERİ
+--------------------------------------------------
+Dice:        0.7749 ± 0.2670
+IoU:         0.6896 ± 0.2659
+Sensitivity: 0.7942 ± 0.2885
+Specificity: 0.9977 ± 0.0037
+Precision:   0.8441 ± 0.1993
+F1:          0.7970 ± 0.2408
+HD95:        10.72 ± 16.80 (piksel)
+ASD:         3.48 ± 6.88 (piksel)
+MCC:         0.7812 ± 0.2617
+
+2. GRUP METRİKLERİ
+--------------------------------------------------
+Parameters (M):     7.7684
+Model size (MB):   29.6339
+GFLOPs:            24.0748
+GPU memory (MB):   102.07
+Inference time (s): 24.80
+Inference time (ms/örnek): 40.46

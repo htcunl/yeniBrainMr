@@ -27,11 +27,20 @@ if gpus:
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import time
+
 from brain_mr_seg.model import build_unet
 from brain_mr_seg.dataset import create_dataset
 from brain_mr_seg.losses import BCEDiceLoss
 from brain_mr_seg.metrics import DiceCoefficient, IoUCoefficient
 from brain_mr_seg.splits import load_split
+from brain_mr_seg.model_metrics import (
+    parameters_millions,
+    model_size_mb,
+    get_gflops,
+    get_gpu_memory_mb,
+)
+from brain_mr_seg.report import write_full_metrics_report, save_training_metrics_json
 
 
 def print_gpu_info():
@@ -104,7 +113,6 @@ def get_callbacks(output_dir: Path, patience: int = 10):
         ),
     ]
     return callbacks
-    return callbacks
 
 
 def main():
@@ -170,10 +178,17 @@ def main():
         num_classes=1,
     )
     
-    # Model özeti
+    # Model özeti ve 2. Grup metrikleri (params, size, GFLOPs)
     total_params = model.count_params()
+    params_M = parameters_millions(model)
+    size_mb = model_size_mb(model)
+    gflops = get_gflops(model, (1, *target_size, 1))
     print(f"   Model: UNet")
     print(f"   Toplam parametre: {total_params:,}")
+    print(f"   Parameters (M): {params_M:.4f}")
+    print(f"   Model size (MB): {size_mb:.4f}")
+    if gflops is not None:
+        print(f"   GFLOPs: {gflops:.4f}")
 
     # Resume from checkpoint
     initial_epoch = 0
@@ -220,6 +235,7 @@ def main():
     steps_per_epoch = len(train_items) // args.batch_size
     validation_steps = len(val_items) // args.batch_size
 
+    training_start = time.perf_counter()
     history = model.fit(
         train_dataset,
         epochs=args.epochs,
@@ -231,6 +247,9 @@ def main():
         verbose=1,
     )
 
+    training_elapsed = time.perf_counter() - training_start
+    gpu_mem = get_gpu_memory_mb()
+
     # Sonuclari yazdir
     print("\n" + "=" * 60)
     print("EGITIM TAMAMLANDI!")
@@ -239,11 +258,44 @@ def main():
     best_dice = max(history.history.get('val_dice', [0]))
     best_iou = max(history.history.get('val_iou', [0]))
     
+    print("   --- 1. GRUP (Segmentasyon) ---")
     print(f"   En iyi Validation Dice: {best_dice:.4f}")
     print(f"   En iyi Validation IoU: {best_iou:.4f}")
+    print("   --- 2. GRUP (Model/Performans) ---")
+    print(f"   Parameters (M): {params_M:.4f}")
+    print(f"   Model size (MB): {size_mb:.4f}")
+    print(f"   Training time: {training_elapsed:.2f} s ({training_elapsed/60:.2f} min)")
+    if gflops is not None:
+        print(f"   GFLOPs: {gflops:.4f}")
+    if gpu_mem is not None:
+        print(f"   GPU memory (MB): {gpu_mem:.2f}")
     print(f"   Modeller: {output_dir / 'checkpoints'}")
     print(f"   Loglar: {output_dir / 'logs'}")
     print("=" * 60)
+
+    # Tek rapor dosyası (tüm başlıklar altında; 1. Grup sadece Dice/IoU, 2. Grup tam)
+    report_path = output_dir / "full_metrics_report.txt"
+    write_full_metrics_report(
+        report_path,
+        dice_mean=best_dice,
+        iou_mean=best_iou,
+        parameters_M=params_M,
+        model_size_MB=size_mb,
+        training_time_sec=training_elapsed,
+        inference_time_sec=None,
+        inference_time_per_sample_ms=None,
+        gflops=gflops,
+        gpu_memory_MB=gpu_mem,
+    )
+    save_training_metrics_json(
+        output_dir / "training_metrics.json",
+        training_time_sec=training_elapsed,
+        parameters_M=params_M,
+        model_size_MB=size_mb,
+        gflops=gflops,
+        gpu_memory_MB=gpu_mem,
+    )
+    print(f"   Tüm metrikler raporu: {report_path}")
 
 
 if __name__ == "__main__":
