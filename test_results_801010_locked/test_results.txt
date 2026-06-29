@@ -1,0 +1,25 @@
+Beyin MR Segmentasyonu Test Sonuçları
+==================================================
+Checkpoint: outputs/checkpoints/best_model.h5
+Test örnekleri: 613
+
+1. GRUP METRİKLERİ
+--------------------------------------------------
+Dice:        0.7541 ± 0.2775
+IoU:         0.6652 ± 0.2732
+Sensitivity: 0.7903 ± 0.3025
+Specificity: 0.9973 ± 0.0040
+Precision:   0.8357 ± 0.1929
+F1:          0.7687 ± 0.2632
+HD95:        11.56 ± 17.41 (piksel)
+ASD:         3.55 ± 6.48 (piksel)
+MCC:         0.7631 ± 0.2695
+
+2. GRUP METRİKLERİ
+--------------------------------------------------
+Parameters (M):     7.7713
+Model size (MB):   29.6451
+GFLOPs:            24.0908
+GPU memory (MB):   102.09
+Inference time (s): 21.28
+Inference time (ms/örnek): 34.72

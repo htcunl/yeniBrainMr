@@ -1,0 +1,8 @@
+{
+  "description": "Test kümesi (613 örnek; splits.json ile splits_80_10_10_locked_test test sırası birebir aynı) için sabit görselleştirme indeksleri. Model/checkpointten bağımsızdır — 70/10/20 ve 80/10/10 test koşularında aynı 20 örnek kullanılır.",
+  "derivation": "np.random.seed(42); np.sort(np.random.choice(613, 20, replace=False))",
+  "indices": [
+    82, 101, 131, 132, 163, 181, 182, 199, 227, 231,
+    238, 300, 370, 393, 436, 505, 542, 576, 601, 609
+  ]
+}

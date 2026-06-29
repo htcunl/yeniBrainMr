@@ -1,0 +1,10 @@
+# Proje (.venv): pip install -r requirements.txt
+#
+# Windows yerel (native): pip'teki TensorFlow 2.11+ sürümleri çoğu kurulumda
+# yalnızca CPU (tensorflow-intel) getirir; GPU için 2.10.x kullanın (CUDA 11.2
+# uyumlu sürücü ile). WSL2 kullanıyorsanız tensorflow[and-cuda] ile daha yeni TF mümkün.
+tensorflow==2.10.1
+numpy>=1.23,<2
+scipy
+matplotlib
+tqdm

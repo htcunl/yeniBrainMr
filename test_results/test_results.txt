@@ -1,6 +1,6 @@
 Beyin MR Segmentasyonu Test Sonuçları
 ==================================================
-Checkpoint: C:\Users\Lenovo\Desktop\yeniBrainMr\outputs\checkpoints\best_model.h5
+Checkpoint: outputs_70_10_20_baseline/checkpoints/best_model.h5
 Test örnekleri: 613
 
 1. GRUP METRİKLERİ
@@ -21,5 +21,5 @@ Parameters (M):     7.7684
 Model size (MB):   29.6339
 GFLOPs:            24.0748
 GPU memory (MB):   102.07
-Inference time (s): 24.80
-Inference time (ms/örnek): 40.46
+Inference time (s): 20.95
+Inference time (ms/örnek): 34.17

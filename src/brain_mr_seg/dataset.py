@@ -19,17 +19,20 @@ def load_image_mask_pair(
     """Tek bir görüntü-maske çiftini yükle"""
     img_path = os.path.join(data_dir, item["image"])
     mask_path = os.path.join(data_dir, item["mask"])
-    
+    # tf.image.resize: size her zaman (H, W) iki skaler olmalı (py_function içinde güvenli)
+    h, w = int(target_size[0]), int(target_size[1])
+    size_hw = (h, w)
+
     # Görüntü yükle
     img = tf.io.read_file(img_path)
     img = tf.image.decode_png(img, channels=1)
-    img = tf.image.resize(img, target_size)
+    img = tf.image.resize(img, size_hw)
     img = tf.cast(img, tf.float32) / 255.0
     
     # Maske yükle
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.image.resize(mask, target_size, method='nearest')
+    mask = tf.image.resize(mask, size_hw, method="nearest")
     mask = tf.cast(mask, tf.float32) / 255.0
     
     return img.numpy(), mask.numpy()
@@ -43,6 +46,7 @@ def create_dataset(
     shuffle: bool = True,
     augment: bool = False,
     seed: int = 42,
+    repeat: bool = False,
 ) -> tf.data.Dataset:
     """
     TensorFlow Dataset oluştur
@@ -55,6 +59,7 @@ def create_dataset(
         shuffle: Shuffle yapılsın mı
         augment: Data augmentation yapılsın mı
         seed: Random seed
+        repeat: True ise veri seti sonsuz tekrarlanır (model.fit çoklu epoch + steps_per_epoch için önerilir)
     
     Returns:
         tf.data.Dataset
@@ -112,6 +117,8 @@ def create_dataset(
         dataset = dataset.map(augment_fn, num_parallel_calls=tf.data.AUTOTUNE)
     
     dataset = dataset.batch(batch_size)
+    if repeat:
+        dataset = dataset.repeat()
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     
     return dataset

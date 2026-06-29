@@ -221,3 +221,23 @@ def load_training_metrics_json(path: Path) -> Optional[dict]:
         return None
 
 
+def save_training_run_config(path: Path, config: dict) -> None:
+    """Eğitim hiperparametreleri ve yollar — tekrarlanabilirlik / kıyaslama için."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def update_training_run_config(path: Path, updates: dict) -> None:
+    """Mevcut training_run_config.json üzerine sonuç alanlarını ekler."""
+    path = Path(path)
+    data: dict = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+    data.update(updates)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+

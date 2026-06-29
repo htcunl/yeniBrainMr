@@ -5,6 +5,7 @@ TensorFlow ile Eğitilen Modeli Test Et
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -52,6 +53,32 @@ from brain_mr_seg.model_metrics import (
     get_gpu_memory_mb,
 )
 from brain_mr_seg.report import write_full_metrics_report, load_training_metrics_json
+
+# viz_test_indices_20.json yoksa yedek (proje kökündeki JSON ile senkron tutun)
+_FALLBACK_VIZ_INDICES_20 = [
+    82, 101, 131, 132, 163, 181, 182, 199, 227, 231,
+    238, 300, 370, 393, 436, 505, 542, 576, 601, 609,
+]
+
+
+def load_fixed_viz_indices(num_samples: int, project_root: Path, n_items: int) -> list[int]:
+    """Modelden bağımsız sabit test indeksleri (70/10/20 ile 80/10/10 aynı görseller)."""
+    path = project_root / "viz_test_indices_20.json"
+    indices: list[int]
+    if path.is_file():
+        data = json.loads(path.read_text(encoding="utf-8"))
+        indices = [int(i) for i in data["indices"]]
+    else:
+        indices = list(_FALLBACK_VIZ_INDICES_20)
+    if num_samples <= len(indices):
+        out = indices[:num_samples]
+    else:
+        rng = np.random.default_rng(42)
+        extra = num_samples - len(indices)
+        pool = [i for i in range(n_items) if i not in indices]
+        pick = rng.choice(pool, size=min(extra, len(pool)), replace=False).tolist()
+        out = indices + sorted(pick)
+    return [i for i in out if 0 <= i < n_items]
 
 
 def evaluate_model(model, dataset, num_samples: int) -> dict:
@@ -281,8 +308,15 @@ def visualize_predictions(
     num_samples: int = 10,
     all_dice_scores: list = None,
     all_iou_scores: list = None,
+    vis_mode: str = "fixed",
+    project_root: Path | None = None,
 ):
-    """Tahminleri görselleştir - dengeli örnekleme ile"""
+    """Tahminleri görselleştir.
+
+    vis_mode:
+      - fixed: viz_test_indices_20.json (modelden bağımsız); 70/10/20 ve 80/10/10 aynı örnekler.
+      - balanced: mevcut Dice sıralamasına göre quintile örnekleme (model bazlı, karşılaştırmada farklı örnekler).
+    """
     if not HAS_MATPLOTLIB:
         print("UYARI: matplotlib yüklü değil, görselleştirme atlanıyor.")
         return
@@ -293,8 +327,14 @@ def visualize_predictions(
     for old in vis_dir.glob("*.png"):
         old.unlink()
 
-    # Dengeli örnekleme: farklı performans seviyelerinden örnekler seç
-    if all_dice_scores is not None and len(all_dice_scores) == len(items):
+    if vis_mode == "fixed":
+        root = project_root or Path(__file__).resolve().parent.parent
+        indices_list = load_fixed_viz_indices(num_samples, root, len(items))
+        indices = np.array(indices_list, dtype=np.int64)
+        print(f"   Sabit örnekleme (modelden bağımsız): {len(indices)} örnek (viz_test_indices_20.json)")
+    # Dengeli örnekleme: farklı performans seviyelerinden örnekler seç (model tahminine bağlı)
+    elif all_dice_scores is not None and len(all_dice_scores) == len(items):
+        np.random.seed(42)
         dice_arr = np.array(all_dice_scores)
         
         # Skorlara göre sırala
@@ -330,7 +370,10 @@ def visualize_predictions(
         indices = np.array(selected_indices)
         print(f"   Dengeli örnekleme: {len(indices)} örnek (farklı performans seviyelerinden)")
     else:
+        np.random.seed(42)
         indices = np.random.choice(len(items), min(num_samples, len(items)), replace=False)
+
+    indices = np.clip(indices, 0, len(items) - 1)
     
     for idx in indices:
         item = items[idx]
@@ -354,14 +397,28 @@ def visualize_predictions(
         hd95 = compute_hd95_np(m, p)
         asd_val = compute_asd_np(m, p)
         mcc = compute_mcc_np(m, p)
-        if not np.isfinite(hd95):
-            hd95 = np.nan
-        if not np.isfinite(asd_val):
-            asd_val = np.nan
 
-        # Görselleştir: 4 panel + altta metrik kutusu (Dice, IoU, Sensitivity, Specificity, Precision, F1, HD95, ASD, MCC)
-        fig = plt.figure(figsize=(16, 5.5))
-        gs = fig.add_gridspec(2, 4, height_ratios=[1.2, 0.45], hspace=0.28)
+        def _fmt_scalar(x: float, nd: int = 4) -> str:
+            """Dice/IoU vb.: her zaman sayı veya nan/inf etiketi (görüntüde boş kalmasın)."""
+            if np.isnan(x):
+                return "nan"
+            if np.isinf(x):
+                return "inf"
+            return f"{x:.{nd}f}"
+
+        def _fmt_surface_dist(x: float) -> str:
+            """HD95/ASD: inf = bir maske boş (sınır yok); nan = tanımsız."""
+            if np.isnan(x):
+                return "nan"
+            if np.isposinf(x):
+                return "∞ (boş)"
+            if np.isneginf(x):
+                return "-∞"
+            return f"{x:.2f}"
+
+        # Görselleştir: 4 panel + altta metrik kutusu (çok satır; tight_layout alt satırı kesebiliyordu)
+        fig = plt.figure(figsize=(16, 6.8))
+        gs = fig.add_gridspec(2, 4, height_ratios=[1.15, 0.72], hspace=0.36)
         axes = [fig.add_subplot(gs[0, i]) for i in range(4)]
 
         axes[0].imshow(img[:, :, 0], cmap="gray")
@@ -384,21 +441,35 @@ def visualize_predictions(
         axes[3].set_title("Karşılaştırma (Yeşil: GT, Kırmızı: Tahmin)", fontsize=10)
         axes[3].axis("off")
 
-        # Metrik kutusu: Dice, IoU, Sensitivity, Specificity, Precision, F1, HD95, ASD, MCC
+        # Metrik kutusu (3 satır; monospace taşmayı azaltır)
         ax_txt = fig.add_subplot(gs[1, :])
         ax_txt.set_axis_off()
-        hd95_s = f"{hd95:.2f}" if np.isfinite(hd95) else "—"
-        asd_s = f"{asd_val:.2f}" if np.isfinite(asd_val) else "—"
+        hd95_s = _fmt_surface_dist(float(hd95))
+        asd_s = _fmt_surface_dist(float(asd_val))
         metrics_text = (
-            f"Dice: {dice:.4f}   |   IoU: {iou:.4f}   |   Sensitivity: {sensitivity:.4f}   |   "
-            f"Specificity: {specificity:.4f}   |   Precision: {precision:.4f}   |   F1: {f1:.4f}   |   "
-            f"HD95: {hd95_s} px   |   ASD: {asd_s} px   |   MCC: {mcc:.4f}"
+            f"Dice: {_fmt_scalar(dice)}  |  IoU: {_fmt_scalar(iou)}  |  Sens: {_fmt_scalar(sensitivity)}  |  Spec: {_fmt_scalar(specificity)}\n"
+            f"Prec: {_fmt_scalar(precision)}  |  F1: {_fmt_scalar(f1)}  |  MCC: {_fmt_scalar(mcc)}\n"
+            f"HD95: {hd95_s} px  |  ASD: {asd_s} px"
         )
-        ax_txt.text(0.5, 0.5, metrics_text, transform=ax_txt.transAxes,
-                    fontsize=10, verticalalignment="center", horizontalalignment="center",
-                    family="monospace", bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8))
-        plt.tight_layout()
-        plt.savefig(vis_dir / f"sample_{idx:04d}.png", dpi=150, bbox_inches='tight')
+        ax_txt.text(
+            0.5,
+            0.5,
+            metrics_text,
+            transform=ax_txt.transAxes,
+            fontsize=9,
+            verticalalignment="center",
+            horizontalalignment="center",
+            family="monospace",
+            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+        )
+        # tight_layout alt metin kutusunu kırpar; manuel boşluk + pad_inches güvenli
+        fig.subplots_adjust(left=0.03, right=0.97, top=0.96, bottom=0.08)
+        plt.savefig(
+            vis_dir / f"sample_{idx:04d}.png",
+            dpi=150,
+            bbox_inches="tight",
+            pad_inches=0.35,
+        )
         plt.close()
     
     print(f"{len(indices)} tahmin görselleştirmesi kaydedildi: {vis_dir}")
@@ -414,6 +485,13 @@ def main():
     parser.add_argument("--image-size", type=int, default=256, help="Görüntü boyutu")
     parser.add_argument("--visualize", action="store_true", help="Tahminleri görselleştir")
     parser.add_argument("--num-vis", type=int, default=20, help="Görselleştirilecek örnek sayısı (predictions klasörüne kaydedilir)")
+    parser.add_argument(
+        "--vis-mode",
+        type=str,
+        choices=("fixed", "balanced"),
+        default="fixed",
+        help="fixed: viz_test_indices_20.json (tüm modellerde aynı 20 örnek); balanced: Dice quintile (modele göre değişir).",
+    )
     args = parser.parse_args()
 
     # GPU info
@@ -573,9 +651,16 @@ def main():
     # Tahmin görselleştirmesi
     print("\nTahminler görselleştiriliyor...")
     visualize_predictions(
-        model, args.data_dir, test_items, target_size, output_dir, args.num_vis,
-        all_dice_scores=results['all_dice'],
-        all_iou_scores=results['all_iou'],
+        model,
+        args.data_dir,
+        test_items,
+        target_size,
+        output_dir,
+        args.num_vis,
+        all_dice_scores=results["all_dice"],
+        all_iou_scores=results["all_iou"],
+        vis_mode=args.vis_mode,
+        project_root=Path(__file__).resolve().parent.parent,
     )
 
     print("\nTest tamamlandı!")

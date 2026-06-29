@@ -52,9 +52,19 @@ from brain_mr_seg.model_metrics import (
 from brain_mr_seg.report import write_full_metrics_report, load_training_metrics_json
 
 
+def _metric_cols(df: pd.DataFrame):
+    """CSVLogger sütun adları: dice_coeff / val_dice_coeff (eski loglarda dice / val_dice olabilir)."""
+    td = "dice_coeff" if "dice_coeff" in df.columns else "dice"
+    vd = "val_dice_coeff" if "val_dice_coeff" in df.columns else "val_dice"
+    ti = "iou_coeff" if "iou_coeff" in df.columns else "iou"
+    vi = "val_iou_coeff" if "val_iou_coeff" in df.columns else "val_iou"
+    return td, vd, ti, vi
+
+
 def plot_training_history(csv_path: str, output_dir: Path):
     """Eğitim geçmişini grafiklerle göster"""
     df = pd.read_csv(csv_path)
+    td, vd, ti, vi = _metric_cols(df)
     
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle('Beyin MR Segmentasyonu - Eğitim Sonuçları', fontsize=16, fontweight='bold')
@@ -71,8 +81,8 @@ def plot_training_history(csv_path: str, output_dir: Path):
     
     # Dice
     ax2 = axes[0, 1]
-    ax2.plot(df['epoch'] + 1, df['dice'], 'b-', label='Train Dice', linewidth=2)
-    ax2.plot(df['epoch'] + 1, df['val_dice'], 'r-', label='Validation Dice', linewidth=2)
+    ax2.plot(df['epoch'] + 1, df[td], 'b-', label='Train Dice', linewidth=2)
+    ax2.plot(df['epoch'] + 1, df[vd], 'r-', label='Validation Dice', linewidth=2)
     ax2.set_xlabel('Epoch')
     ax2.set_ylabel('Dice Score')
     ax2.set_title('Dice Score Grafiği')
@@ -81,8 +91,8 @@ def plot_training_history(csv_path: str, output_dir: Path):
     
     # IoU
     ax3 = axes[1, 0]
-    ax3.plot(df['epoch'] + 1, df['iou'], 'b-', label='Train IoU', linewidth=2)
-    ax3.plot(df['epoch'] + 1, df['val_iou'], 'r-', label='Validation IoU', linewidth=2)
+    ax3.plot(df['epoch'] + 1, df[ti], 'b-', label='Train IoU', linewidth=2)
+    ax3.plot(df['epoch'] + 1, df[vi], 'r-', label='Validation IoU', linewidth=2)
     ax3.set_xlabel('Epoch')
     ax3.set_ylabel('IoU Score')
     ax3.set_title('IoU Score Grafiği')
@@ -104,12 +114,12 @@ def plot_training_history(csv_path: str, output_dir: Path):
     print(f"Egitim grafikleri kaydedildi: {output_dir / 'training_curves.png'}")
     
     # En iyi değerleri yazdır
-    best_idx = df['val_dice'].idxmax()
+    best_idx = df[vd].idxmax()
     print(f"\nEN IYI EPOCH: {df.loc[best_idx, 'epoch'] + 1}")
-    print(f"   Train Dice: {df.loc[best_idx, 'dice']:.4f}")
-    print(f"   Val Dice: {df.loc[best_idx, 'val_dice']:.4f}")
-    print(f"   Train IoU: {df.loc[best_idx, 'iou']:.4f}")
-    print(f"   Val IoU: {df.loc[best_idx, 'val_iou']:.4f}")
+    print(f"   Train Dice: {df.loc[best_idx, td]:.4f}")
+    print(f"   Val Dice: {df.loc[best_idx, vd]:.4f}")
+    print(f"   Train IoU: {df.loc[best_idx, ti]:.4f}")
+    print(f"   Val IoU: {df.loc[best_idx, vi]:.4f}")
 
 
 def test_model(model, data_dir: str, test_items: list, target_size=(256, 256)):
@@ -290,9 +300,9 @@ def main():
     # Ayarlar
     data_dir = r"c:\Users\Lenovo\Desktop\archive (1)"
     split_file = r"c:\Users\Lenovo\Desktop\yeniBrainMr\splits.json"
-    checkpoint_path = r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs\checkpoints\best_model.h5"
-    csv_path = r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs\training_log.csv"
-    output_dir = Path(r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs")
+    checkpoint_path = r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs_70_10_20_baseline\checkpoints\best_model.h5"
+    csv_path = r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs_70_10_20_baseline\training_log.csv"
+    output_dir = Path(r"c:\Users\Lenovo\Desktop\yeniBrainMr\outputs_70_10_20_baseline")
     
     print("=" * 60)
     print("BEYIN MR SEGMENTASYONU - TEST VE GORSELLESTIRME")
